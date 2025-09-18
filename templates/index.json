@@ -1,0 +1,8 @@
+{
+  "templates": [
+    {
+      "file": "generic.yaml",
+      "label": "Generic YAML"
+    }
+  ]
+}
