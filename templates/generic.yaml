@@ -1,35 +1,35 @@
 workbook:
-{% if sheets | length %}
+{%- if sheets | length %}
   sheets:
-{% for sheetKey, sheet in sheets %}
-    - key: {{ sheetKey | dump }}
-      name: {{ sheet.name | dump }}
-{% set columnPairs = sheet.cols | dictsort -%}
-{% if columnPairs | length %}
+  {%- for sheetKey, sheet in sheets %}
+    - key: {{ sheetKey | dump | safe }}
+      name: {{ sheet.name | dump | safe }}
+    {%- set columnPairs = sheet.cols | dictsort %}
+    {%- if columnPairs | length %}
       columns:
-{% for column in columnPairs %}
-        - {{ column[0] | dump }}
-{% endfor %}
-{% else %}
+      {%- for column in columnPairs %}
+        - {{ column[0] | dump | safe }}
+      {%- endfor %}
+    {%- else %}
       columns: []
-{% endif %}
-{% if sheet.rows | length %}
+    {%- endif %}
+    {%- if sheet.rows | length %}
       rows:
-{% for row in sheet.rows %}
-{% set cells = row | dictsort -%}
-{% if cells | length %}
+      {%- for row in sheet.rows %}
+        {%- set cells = row | dictsort %}
+        {%- if cells | length %}
         -
-{% for cell in cells %}
-          {{ cell[0] }}: {{ cell[1] | dump }}
-{% endfor %}
-{% else %}
+          {%- for cell in cells %}
+          {{ cell[0] }}: {{ cell[1] | dump | safe }}
+          {%- endfor %}
+        {%- else %}
         - {}
-{% endif %}
-{% endfor %}
-{% else %}
+        {%- endif %}
+      {%- endfor %}
+    {%- else %}
       rows: []
-{% endif %}
-{% endfor %}
-{% else %}
+    {%- endif %}
+  {%- endfor %}
+{%- else %}
   sheets: []
-{% endif %}
+{%- endif %}
