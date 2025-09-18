@@ -44,10 +44,10 @@
               <div id="excelStatus" class="form-text">No file selected.</div>
             </div>
 
-            <div class="mb-3">
-              <label class="form-label">Workbook summary</label>
-              <div id="sheetSummary" class="border rounded p-2 bg-light" style="min-height:3rem;">
-                <em class="text-muted">Upload a workbook to see sheets and columns here.</em>
+            <div id="workbookDetails" class="mb-3 d-none">
+              <div class="border rounded p-2 bg-light">
+                <div id="workbookTitle" class="fw-semibold"></div>
+                <div id="sheetAccordion" class="accordion accordion-flush mt-2"></div>
               </div>
             </div>
 
@@ -111,7 +111,7 @@ sheets:
       var env = new nunjucks.Environment();
 
       // ===== State =====
-      var state = { workbook:null, sheets:{}, outputText:'' };
+      var state = { workbook:null, sheets:{}, outputText:'', fileName:'' };
 
       // ===== Helpers =====
       function $(sel){ return document.querySelector(sel); }
@@ -141,27 +141,82 @@ sheets:
       }
 
       function renderSheetSummary(){
-        var box = $('#sheetSummary');
-        box.innerHTML = '';
+        var wrapper = $('#workbookDetails');
+        var titleEl = $('#workbookTitle');
+        var accordion = $('#sheetAccordion');
+        if (!wrapper || !titleEl || !accordion) { return; }
+
+        accordion.innerHTML = '';
         var keys = Object.keys(state.sheets);
-        if (!keys.length){ box.innerHTML = '<em class="text-muted">No workbook loaded.</em>'; return; }
-        var ul = document.createElement('ul');
-        ul.className = 'list-group list-group-flush';
-        keys.forEach(function(k){
+        if (!keys.length){
+          wrapper.classList.add('d-none');
+          titleEl.textContent = '';
+          return;
+        }
+
+        wrapper.classList.remove('d-none');
+        var sheetCount = keys.length;
+        var sheetLabel = sheetCount === 1 ? '1 sheet' : sheetCount + ' sheets';
+        var workbookLabel = state.fileName ? state.fileName + ' (' + sheetLabel + ')' : sheetLabel;
+        titleEl.textContent = workbookLabel;
+
+        var accordionParent = accordion.id ? ('#' + accordion.id) : '';
+        keys.forEach(function(k, idx){
           var s = state.sheets[k];
-          var li = document.createElement('li');
-          li.className = 'list-group-item';
-          li.innerHTML = '<div class="fw-semibold">'+s.name+' <span class="badge rounded-pill text-bg-secondary">'+s.rows.length+' rows</span></div>';
-          var cols = Object.keys(s.cols);
-          if (cols.length){
-            var inner = document.createElement('ul');
-            inner.className = 'mt-2 mb-0';
-            cols.forEach(function(c){ var ci = document.createElement('li'); ci.textContent = c; inner.appendChild(ci); });
-            li.appendChild(inner);
+          var colNames = Object.keys(s.cols);
+          var colLabel = colNames.length === 1 ? '1 col' : colNames.length + ' cols';
+
+          var item = document.createElement('div');
+          item.className = 'accordion-item';
+
+          var headerId = 'sheetHeading' + idx;
+          var collapseId = 'sheetCollapse' + idx;
+
+          var header = document.createElement('h2');
+          header.className = 'accordion-header';
+          header.id = headerId;
+
+          var button = document.createElement('button');
+          button.className = 'accordion-button collapsed';
+          button.type = 'button';
+          button.setAttribute('data-bs-toggle', 'collapse');
+          button.setAttribute('data-bs-target', '#' + collapseId);
+          button.setAttribute('aria-expanded', 'false');
+          button.setAttribute('aria-controls', collapseId);
+          button.textContent = s.name + ' (' + colLabel + ')';
+
+          header.appendChild(button);
+          item.appendChild(header);
+
+          var collapse = document.createElement('div');
+          collapse.id = collapseId;
+          collapse.className = 'accordion-collapse collapse';
+          collapse.setAttribute('aria-labelledby', headerId);
+          if (accordionParent) { collapse.setAttribute('data-bs-parent', accordionParent); }
+
+          var body = document.createElement('div');
+          body.className = 'accordion-body py-2';
+
+          if (colNames.length){
+            var list = document.createElement('ul');
+            list.className = 'list-unstyled mb-0 ps-3';
+            colNames.forEach(function(col){
+              var li = document.createElement('li');
+              li.textContent = '- ' + col;
+              list.appendChild(li);
+            });
+            body.appendChild(list);
+          } else {
+            var empty = document.createElement('div');
+            empty.className = 'text-muted fst-italic ps-3';
+            empty.textContent = 'No columns detected.';
+            body.appendChild(empty);
           }
-          ul.appendChild(li);
+
+          collapse.appendChild(body);
+          item.appendChild(collapse);
+          accordion.appendChild(item);
         });
-        box.appendChild(ul);
       }
 
       function enableRenderButtons(){ $('#renderBtn').disabled = !Object.keys(state.sheets).length; }
@@ -242,25 +297,68 @@ sheets:
         enableDownload(false);
         var f = ev.target.files && ev.target.files[0];
         var stat = $('#excelStatus');
+
         if (!f){
-          state.workbook=null; state.sheets={};
-          renderSheetSummary(); enableRenderButtons();
-          stat.textContent='No file selected.';
+          state.workbook = null;
+          state.sheets = {};
+          state.fileName = '';
+          renderSheetSummary();
+          enableRenderButtons();
+          if (stat){
+            stat.textContent = 'No file selected.';
+            stat.classList.remove('d-none');
+          }
           return;
         }
-        stat.textContent = 'Loading…';
+
+        state.workbook = null;
+        state.sheets = {};
+        state.fileName = '';
+        renderSheetSummary();
+        enableRenderButtons();
+
+        if (stat){
+          stat.textContent = 'Loading…';
+          stat.classList.remove('d-none');
+        }
+
         var reader = new FileReader();
         reader.onload = function(){
           try {
             var data = reader.result;
             var wb = XLSX.read(data, { type:'array' });
-            state.workbook = wb; state.sheets = parseWorkbook(wb);
+            state.workbook = wb;
+            state.sheets = parseWorkbook(wb);
+            state.fileName = f.name || '';
             renderSheetSummary();
             enableRenderButtons();
-            stat.innerHTML = '<span class="text-success">Loaded:</span> '+ f.name;
+            if (stat){
+              stat.textContent = '';
+              stat.classList.add('d-none');
+            }
           } catch (e){
             console.error(e);
-            stat.innerHTML = '<span class="text-danger">Error:</span> '+ e.message;
+            state.workbook = null;
+            state.sheets = {};
+            state.fileName = '';
+            renderSheetSummary();
+            enableRenderButtons();
+            if (stat){
+              stat.innerHTML = '<span class="text-danger">Error:</span> ' + e.message;
+              stat.classList.remove('d-none');
+            }
+          }
+        };
+        reader.onerror = function(){
+          state.workbook = null;
+          state.sheets = {};
+          state.fileName = '';
+          renderSheetSummary();
+          enableRenderButtons();
+          var errMsg = reader.error && reader.error.message ? reader.error.message : 'Unknown error';
+          if (stat){
+            stat.innerHTML = '<span class="text-danger">Error:</span> ' + errMsg;
+            stat.classList.remove('d-none');
           }
         };
         reader.readAsArrayBuffer(f);
