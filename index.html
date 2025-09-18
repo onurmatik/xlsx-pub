@@ -24,12 +24,8 @@
 </head>
 <body>
   <div class="container-fluid">
-    <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="mb-3">
       <h1 class="h4 mb-0">Excel → Template Text Renderer</h1>
-      <div class="d-flex gap-2">
-        <button id="demoBtn" type="button" class="btn btn-outline-secondary btn-sm">Load demo data</button>
-        <button id="testBtn" type="button" class="btn btn-outline-primary btn-sm">Run tests</button>
-      </div>
     </div>
 
     <div class="row g-3">
@@ -174,7 +170,12 @@ sheets:
         enableDownload(false);
         var f = ev.target.files && ev.target.files[0];
         var stat = $('#excelStatus');
-        if (!f){ state.workbook=null; state.sheets={}; renderSheetSummary(); enableRenderButtons(); stat.textContent='No file selected.'; return; }
+        if (!f){
+          state.workbook=null; state.sheets={};
+          renderSheetSummary(); enableRenderButtons();
+          stat.textContent='No file selected.';
+          return;
+        }
         stat.textContent = 'Loading…';
         var reader = new FileReader();
         reader.onload = function(){
@@ -185,61 +186,16 @@ sheets:
             renderSheetSummary();
             enableRenderButtons();
             stat.innerHTML = '<span class="text-success">Loaded:</span> '+ f.name;
-          } catch (e){ console.error(e); stat.innerHTML = '<span class="text-danger">Error:</span> '+ e.message; }
+          } catch (e){
+            console.error(e);
+            stat.innerHTML = '<span class="text-danger">Error:</span> '+ e.message;
+          }
         };
         reader.readAsArrayBuffer(f);
       });
 
       $('#renderBtn').addEventListener('click', renderTemplate);
       $('#downloadBtn').addEventListener('click', download);
-
-      // Demo data
-      $('#demoBtn').addEventListener('click', function(){
-        var demo = {
-          profile: { name:'profile', rows:[
-            { name:'Ada Lovelace', city:'London' },
-            { name:'Linus Torvalds', city:'Helsinki' },
-            { name:'Guido van Rossum', city:'Amsterdam' }
-          ], cols:{ name:['Ada Lovelace','Linus Torvalds','Guido van Rossum'], city:['London','Helsinki','Amsterdam'] } },
-          items: { name:'items', rows:[
-            { name:'Keyboard', category:'peripheral', color:'black' },
-            { name:'Mouse', category:'peripheral', color:'white' },
-            { name:'Monitor', category:'display', color:'black' },
-            { name:'Laptop', category:'computer', color:'silver' },
-            { name:'Cable', category:'accessory', color:'black' }
-          ], cols:{ name:['Keyboard','Mouse','Monitor','Laptop','Cable'], category:['peripheral','peripheral','display','computer','accessory'], color:['black','white','black','silver','black'] } }
-        };
-        state.workbook = { demo:true }; state.sheets = demo;
-        renderSheetSummary(); enableRenderButtons();
-        $('#excelStatus').innerHTML = '<span class="text-success">Demo data loaded.</span>';
-      });
-
-      // Tests (basic sanity checks)
-      $('#testBtn').addEventListener('click', function(){
-        var pass = 0, fail = 0; var logs = [];
-        if (!Object.keys(state.sheets).length) document.getElementById('demoBtn').click();
-
-        // Test 1: summary lists sheet names and row counts
-        var keys = Object.keys(state.sheets);
-        if (keys.indexOf('profile') !== -1 && state.sheets.profile.rows.length === 3) pass++; else fail++;
-        if (keys.indexOf('items') !== -1 && state.sheets.items.rows.length === 5) pass++; else fail++;
-        logs.push('T1 summary ok');
-
-        // Test 2: rendering produces exactly one document
-        var tpl = 'count_items: {{ sheets.items.rows | length }}';
-        var text = nunjucks.renderString(tpl, { sheets: state.sheets });
-        if (typeof text === 'string' && text.indexOf('count_items: 5') !== -1) pass++; else fail++;
-        logs.push('T2 single render ok');
-
-        // Test 3: column list available
-        if (Array.isArray(state.sheets.items.cols.name) && state.sheets.items.cols.name.length === 5) pass++; else fail++;
-        logs.push('T3 cols ok');
-
-        var status = document.createElement('div');
-        status.className = 'alert ' + (fail ? 'alert-warning' : 'alert-success') + ' mt-2';
-        status.textContent = 'Tests: ' + pass + ' passed, ' + fail + ' failed. ' + logs.join(' | ');
-        $('#sheetSummary').appendChild(status);
-      });
 
       // Initial summary
       renderSheetSummary(); enableRenderButtons();
