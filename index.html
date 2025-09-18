@@ -56,6 +56,7 @@
                 <label for="tpl" class="form-label mb-0">Template</label>
                 <div>
                   <button id="tplUploadBtn" type="button" class="btn btn-sm btn-outline-secondary">Upload file</button>
+                  <button id="tplDownloadBtn" type="button" class="btn btn-sm btn-outline-secondary ms-2">Download template</button>
                   <input id="tplUpload" type="file" class="d-none" accept="text/*,.txt,.text,.md,.markdown,.njk,.nunjucks,.tmpl,.html,.htm,.json,.yaml,.yml,.csv,.tsv,.ini,.conf,.env" />
                 </div>
               </div>
@@ -111,7 +112,7 @@ sheets:
       var env = new nunjucks.Environment();
 
       // ===== State =====
-      var state = { workbook:null, sheets:{}, outputText:'', fileName:'' };
+      var state = { workbook:null, sheets:{}, outputText:'', fileName:'', templateName:'template.txt' };
 
       // ===== Helpers =====
       function $(sel){ return document.querySelector(sel); }
@@ -253,6 +254,7 @@ sheets:
           updateTplStatus('The file "' + (file.name || 'selected') + '" does not look like a text template.', 'danger');
           return;
         }
+        state.templateName = file && file.name ? file.name : 'template.txt';
         var reader = new FileReader();
         reader.onload = function(){
           if (tplArea) {
@@ -273,6 +275,7 @@ sheets:
         if (!tplArea) { return; }
         tplArea.value = text || '';
         tplArea.focus();
+        state.templateName = 'template.txt';
         updateTplStatus(note || 'Loaded dropped text.', 'success');
       }
 
@@ -289,6 +292,15 @@ sheets:
         var name = ($('#outName').value || 'document.yaml').trim();
         var blob = new Blob([state.outputText || ''], { type: 'text/plain;charset=utf-8' });
         saveAs(blob, name);
+      }
+
+      function downloadTemplate(){
+        getTplElements();
+        if (!tplArea) { return; }
+        var name = (state.templateName || '').trim() || 'template.txt';
+        var blob = new Blob([tplArea.value || ''], { type: 'text/plain;charset=utf-8' });
+        saveAs(blob, name);
+        updateTplStatus('Downloaded template as ' + name + '.', 'success');
       }
 
       // ===== Events =====
@@ -371,6 +383,7 @@ sheets:
       getTplElements();
       updateTplStatus();
       var tplUploadBtn = $('#tplUploadBtn');
+      var tplDownloadBtn = $('#tplDownloadBtn');
       var tplUploadInput = $('#tplUpload');
       if (tplUploadBtn && tplUploadInput) {
         tplUploadBtn.addEventListener('click', function(){ tplUploadInput.click(); });
@@ -379,6 +392,9 @@ sheets:
           if (file) { loadTemplateFromFile(file); }
           ev.target.value = '';
         });
+      }
+      if (tplDownloadBtn) {
+        tplDownloadBtn.addEventListener('click', downloadTemplate);
       }
 
       if (tplArea) {
