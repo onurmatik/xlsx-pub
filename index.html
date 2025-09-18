@@ -142,13 +142,14 @@
     <div class="app-split">
       <!-- Left column -->
       <div class="app-pane app-pane-left app-column" id="appDataPane">
-        <div class="card h-100">
-          <div class="card-header">Data & Template</div>
-          <div class="card-body">
+        <div class="h-100">
+          <h2 class="fs-5">Data & Template</h2>
+          <hr>
+          <div class="">
             <div class="mb-3">
               <label for="excel" class="form-label">Upload Excel</label>
               <input id="excel" type="file" class="form-control" accept=".xlsx,.xls" />
-              <div id="excelStatus" class="form-text">No file selected.</div>
+              <div id="excelStatus" class="form-text"></div>
             </div>
 
             <div id="workbookDetails" class="mb-3 d-none">
@@ -170,11 +171,11 @@
               <textarea id="tpl" class="form-control" rows="12" placeholder="# Example YAML generated from Excel
 sheets:
 {% for key, s in sheets %}
-  {{ s.name | lower | replace(' ', '_') }}:
+  {{ s.name }}:
     rows: {{ s.rows | length }}
     columns:
     {% for colName, values in s.cols %}
-      - {{ colName | replace(' ', '_') }}
+      - {{ colName }}
     {% endfor %}
     {% endfor %}"></textarea>
               <div class="form-text">
@@ -202,13 +203,11 @@ sheets:
 
       <!-- Right column -->
       <div class="app-pane app-pane-right app-column" id="appPreviewPane">
-        <div class="card h-100">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Output preview</span>
-          </div>
-          <div class="card-body">
-            <pre id="output" class="mb-0 text-body"></pre>
-          </div>
+        <div class="h-100">
+          <h2 class="fs-5">Output preview</h2>
+          <hr>
+          <pre id="output" class="mb-0 text-body">
+          </pre>
         </div>
       </div>
     </div>
@@ -302,7 +301,6 @@ sheets:
           collapse.id = collapseId;
           collapse.className = 'accordion-collapse collapse';
           collapse.setAttribute('aria-labelledby', headerId);
-          if (accordionParent) { collapse.setAttribute('data-bs-parent', accordionParent); }
 
           var body = document.createElement('div');
           body.className = 'accordion-body py-2';
