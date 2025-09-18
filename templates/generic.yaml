@@ -1,0 +1,35 @@
+workbook:
+{% if sheets | length %}
+  sheets:
+{% for sheetKey, sheet in sheets %}
+    - key: {{ sheetKey | dump }}
+      name: {{ sheet.name | dump }}
+{% set columnPairs = sheet.cols | dictsort -%}
+{% if columnPairs | length %}
+      columns:
+{% for column in columnPairs %}
+        - {{ column[0] | dump }}
+{% endfor %}
+{% else %}
+      columns: []
+{% endif %}
+{% if sheet.rows | length %}
+      rows:
+{% for row in sheet.rows %}
+{% set cells = row | dictsort -%}
+{% if cells | length %}
+        -
+{% for cell in cells %}
+          {{ cell[0] }}: {{ cell[1] | dump }}
+{% endfor %}
+{% else %}
+        - {}
+{% endif %}
+{% endfor %}
+{% else %}
+      rows: []
+{% endif %}
+{% endfor %}
+{% else %}
+  sheets: []
+{% endif %}
