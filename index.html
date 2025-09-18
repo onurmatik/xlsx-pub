@@ -160,9 +160,12 @@
             </div>
 
             <div class="mb-3">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <label for="tpl" class="form-label mb-0">Template</label>
-                <div>
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <div class="d-flex align-items-center gap-2">
+                  <label for="tpl" class="form-label mb-0">Template</label>
+                  <select id="tplSelect" class="form-select form-select-sm" aria-label="Choose template" style="min-width: 12rem;"></select>
+                </div>
+                <div class="ms-auto">
                   <button id="tplUploadBtn" type="button" class="btn btn-sm btn-outline-secondary">Upload file</button>
                   <button id="tplDownloadBtn" type="button" class="btn btn-sm btn-outline-secondary ms-2">Download template</button>
                   <input id="tplUpload" type="file" class="d-none" accept="text/*,.txt,.text,.md,.markdown,.njk,.nunjucks,.tmpl,.html,.htm,.json,.yaml,.yml,.csv,.tsv,.ini,.conf,.env" />
@@ -172,7 +175,7 @@
               <div class="form-text">
                 Use <nobr><code>sheets.&lt;sheetKey&gt;.rows</code></nobr> and <nobr><code>sheets.&lt;sheetKey&gt;.cols.&lt;column&gt;</code></nobr>.
               </div>
-              <div id="tplStatus" class="form-text text-muted" data-default-message="Drag &amp; drop a template text file here, upload one or choose from samples list.">Drag &amp; drop a template text file here, upload one or choose from samples list.</div>
+              <div id="tplStatus" class="form-text text-muted" data-default-message="Drag &amp; drop a template text file here, upload one or choose from the template list.">Drag &amp; drop a template text file here, upload one or choose from the template list.</div>
             </div>
 
             <div class="row g-2 align-items-end">
@@ -219,6 +222,7 @@
       var tplArea = null;
       var tplStatusEl = null;
       var tplStatusDefault = '';
+      var tplSelectEl = null;
 
       function getTplElements(){
         if (!tplArea) { tplArea = $('#tpl'); }
@@ -226,6 +230,17 @@
           tplStatusEl = $('#tplStatus');
           if (tplStatusEl) { tplStatusDefault = tplStatusEl.getAttribute('data-default-message') || tplStatusEl.textContent || ''; }
         }
+      }
+
+      function getTplSelect(){
+        if (!tplSelectEl) { tplSelectEl = $('#tplSelect'); }
+        return tplSelectEl;
+      }
+
+      function setTemplateSelectValue(value){
+        var select = getTplSelect();
+        if (!select) { return; }
+        select.value = value || '';
       }
 
       function parseWorkbook(workbook){
@@ -472,6 +487,7 @@
             tplArea.value = reader.result || '';
             tplArea.focus();
           }
+          setTemplateSelectValue('');
           updateTplStatus('Loaded template from ' + (file.name || 'file') + '.', 'success');
         };
         reader.onerror = function(){
@@ -481,12 +497,13 @@
         reader.readAsText(file);
       }
 
-      function loadTemplateFromText(text, note){
+      function loadTemplateFromText(text, note, templateName, selectValue){
         getTplElements();
         if (!tplArea) { return; }
         tplArea.value = text || '';
         tplArea.focus();
-        state.templateName = 'template.txt';
+        state.templateName = templateName ? templateName : 'template.txt';
+        setTemplateSelectValue(selectValue);
         updateTplStatus(note || 'Loaded dropped text.', 'success');
       }
 
@@ -512,6 +529,136 @@
         var blob = new Blob([tplArea.value || ''], { type: 'text/plain;charset=utf-8' });
         saveAs(blob, name);
         updateTplStatus('Downloaded template as ' + name + '.', 'success');
+      }
+
+      function formatTemplateLabel(file){
+        var name = String(file || '');
+        var parts = name.split('/');
+        if (parts.length) { name = parts[parts.length - 1] || name; }
+        var dot = name.lastIndexOf('.');
+        if (dot > 0) { name = name.slice(0, dot); }
+        name = name.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!name) { name = file; }
+        return name.replace(/\b\w/g, function(chr){ return chr.toUpperCase(); });
+      }
+
+      function parseTemplateList(data){
+        var rawList = [];
+        if (Array.isArray(data)) {
+          rawList = data;
+        } else if (data && Array.isArray(data.templates)) {
+          rawList = data.templates;
+        }
+        var entries = [];
+        rawList.forEach(function(item){
+          if (!item) { return; }
+          if (typeof item === 'string') {
+            entries.push({ file: item, label: formatTemplateLabel(item) });
+            return;
+          }
+          if (typeof item === 'object') {
+            var file = item.file || item.path || item.name;
+            if (!file) { return; }
+            var label = item.label || item.title || formatTemplateLabel(file);
+            entries.push({ file: file, label: label });
+          }
+        });
+        var seen = {};
+        var unique = [];
+        entries.forEach(function(entry){
+          var file = entry.file;
+          if (!file || seen[file]) { return; }
+          seen[file] = true;
+          unique.push(entry);
+        });
+        return unique;
+      }
+
+      function renderTemplateSelect(list, placeholder, disableSelect){
+        var select = getTplSelect();
+        if (!select) { return; }
+        var currentValue = select.value;
+        var fragment = document.createDocumentFragment();
+        var placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = placeholder || '';
+        fragment.appendChild(placeholderOption);
+        var hasOptions = Array.isArray(list) && list.length > 0;
+        if (hasOptions) {
+          list.forEach(function(item){
+            var option = document.createElement('option');
+            option.value = item.file;
+            option.textContent = item.label;
+            option.setAttribute('data-label', item.label);
+            fragment.appendChild(option);
+          });
+        }
+        select.innerHTML = '';
+        select.appendChild(fragment);
+        var shouldDisable = disableSelect || !hasOptions;
+        select.disabled = !!shouldDisable;
+        if (!shouldDisable && currentValue) {
+          var keepValue = false;
+          list.forEach(function(item){ if (item.file === currentValue) { keepValue = true; } });
+          if (keepValue) {
+            setTemplateSelectValue(currentValue);
+            return;
+          }
+        }
+        setTemplateSelectValue('');
+      }
+
+      function buildTemplateUrl(file){
+        var safeParts = String(file || '').split('/').filter(function(part){
+          return part && part !== '.' && part !== '..';
+        });
+        return 'templates/' + safeParts.join('/');
+      }
+
+      function fetchTemplateList(){
+        renderTemplateSelect([], 'Loading templates…', true);
+        fetch('templates/index.json', { cache: 'no-store' })
+          .then(function(resp){
+            if (!resp.ok) { throw new Error('HTTP ' + resp.status); }
+            return resp.json();
+          })
+          .then(function(data){
+            var list = parseTemplateList(data);
+            if (list.length) {
+              renderTemplateSelect(list, 'Choose a template…', false);
+            } else {
+              renderTemplateSelect([], 'No templates available', true);
+            }
+          })
+          .catch(function(err){
+            console.warn('Unable to load template index.', err);
+            renderTemplateSelect([], 'Templates unavailable', true);
+          });
+      }
+
+      function handleTemplateSelection(ev){
+        var select = ev.target || ev.currentTarget;
+        if (!select) { return; }
+        var file = select.value;
+        if (!file) { return; }
+        var option = select.options[select.selectedIndex];
+        var label = option ? (option.getAttribute('data-label') || option.textContent || file) : file;
+        updateTplStatus('Loading template "' + label + '"…');
+        fetch(buildTemplateUrl(file), { cache: 'no-store' })
+          .then(function(resp){
+            if (!resp.ok) { throw new Error('HTTP ' + resp.status); }
+            return resp.text();
+          })
+          .then(function(text){
+            var nameParts = file.split('/');
+            var baseName = nameParts.length ? (nameParts[nameParts.length - 1] || file) : file;
+            loadTemplateFromText(text, 'Loaded template "' + label + '" from the template list.', baseName, file);
+          })
+          .catch(function(err){
+            console.error(err);
+            updateTplStatus('Could not load template "' + label + '": ' + err.message, 'danger');
+            setTemplateSelectValue('');
+          });
       }
 
       // ===== Events =====
@@ -608,6 +755,12 @@
       if (tplDownloadBtn) {
         tplDownloadBtn.addEventListener('click', downloadTemplate);
       }
+
+      var tplSelect = getTplSelect();
+      if (tplSelect) {
+        tplSelect.addEventListener('change', handleTemplateSelection);
+      }
+      fetchTemplateList();
 
       if (tplArea) {
         tplArea.addEventListener('dragover', function(ev){
