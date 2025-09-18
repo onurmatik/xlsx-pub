@@ -38,12 +38,68 @@
       padding-bottom: 1rem;
       box-sizing: border-box;
     }
-    .app-row {
-      height: 100%;
-    }
     .app-column {
       height: 100%;
       overflow-y: auto;
+    }
+    .app-split {
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      gap: 1rem;
+      height: 100%;
+      --app-left-width: 41.6667%;
+    }
+    .app-pane {
+      min-width: 0;
+    }
+    .app-pane-left {
+      flex: 0 0 var(--app-left-width);
+      width: var(--app-left-width);
+      max-width: var(--app-left-width);
+    }
+    .app-pane-right {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .app-divider {
+      flex: 0 0 auto;
+      width: 0.75rem;
+      cursor: col-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      touch-action: none;
+    }
+    .app-divider::before {
+      content: '';
+      width: 2px;
+      height: 60%;
+      background-color: rgba(0, 0, 0, 0.1);
+      border-radius: 1px;
+    }
+    .app-divider::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 40px;
+      border-radius: 0.75rem;
+      background-color: transparent;
+    }
+    .app-divider:hover::after,
+    .app-divider.is-active::after,
+    .app-divider:focus-visible::after {
+      background-color: rgba(13, 110, 253, 0.15);
+    }
+    .app-divider.is-active::before {
+      background-color: #0d6efd;
+    }
+    .app-divider:focus-visible {
+      outline: none;
     }
     pre { white-space: pre-wrap; word-break: break-word; }
     #tpl.drag-over {
@@ -55,12 +111,22 @@
         height: auto;
         overflow: visible;
       }
-      .app-row {
+      .app-split {
         height: auto;
+        flex-direction: column;
+      }
+      .app-pane-left,
+      .app-pane-right {
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
       }
       .app-column {
         height: auto;
         overflow: visible;
+      }
+      .app-divider {
+        display: none;
       }
     }
   </style>
@@ -73,9 +139,9 @@
   </nav>
 
   <main class="container-fluid app-content">
-    <div class="row g-3 app-row">
+    <div class="app-split">
       <!-- Left column -->
-      <div class="col-md-5 app-column">
+      <div class="app-pane app-pane-left app-column" id="appDataPane">
         <div class="card h-100">
           <div class="card-header">Data & Template</div>
           <div class="card-body">
@@ -132,8 +198,10 @@ sheets:
         </div>
       </div>
 
+      <div class="app-divider" role="separator" aria-orientation="vertical" aria-label="Resize panels" aria-controls="appDataPane appPreviewPane" tabindex="0"></div>
+
       <!-- Right column -->
-      <div class="col-md-7 app-column">
+      <div class="app-pane app-pane-right app-column" id="appPreviewPane">
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span>Output preview</span>
@@ -265,6 +333,119 @@ sheets:
       function enableDownload(enable){ $('#downloadBtn').disabled = !enable; }
 
       function buildContext(){ return { sheets: state.sheets }; }
+
+      function initResizableColumns(){
+        var split = document.querySelector('.app-split');
+        var leftPane = document.querySelector('.app-pane-left');
+        var rightPane = document.querySelector('.app-pane-right');
+        var divider = document.querySelector('.app-divider');
+        if (!split || !leftPane || !rightPane || !divider) { return; }
+
+        var minPercent = 20;
+        var maxPercent = 80;
+        var computed = parseFloat(getComputedStyle(split).getPropertyValue('--app-left-width'));
+        var storedWidth = isNaN(computed) ? 41.6667 : computed;
+        var activePointerId = null;
+        var dragOffset = 0;
+
+        divider.setAttribute('aria-valuemin', String(minPercent));
+        divider.setAttribute('aria-valuemax', String(maxPercent));
+
+        function isStacked(){
+          return window.matchMedia('(max-width: 767.98px)').matches;
+        }
+
+        function clampWidth(value){
+          if (value < minPercent) { return minPercent; }
+          if (value > maxPercent) { return maxPercent; }
+          return value;
+        }
+
+        function applyWidth(value){
+          split.style.setProperty('--app-left-width', value + '%');
+          divider.setAttribute('aria-valuenow', String(Math.round(value)));
+        }
+
+        function setWidth(value){
+          var clamped = clampWidth(value);
+          storedWidth = clamped;
+          applyWidth(clamped);
+        }
+
+        function pointerMove(ev){
+          if (activePointerId === null || ev.pointerId !== activePointerId) { return; }
+          var rect = split.getBoundingClientRect();
+          if (rect.width <= 0) { return; }
+          var targetWidth = ev.clientX - rect.left - dragOffset;
+          var percent = (targetWidth / rect.width) * 100;
+          setWidth(percent);
+          ev.preventDefault();
+        }
+
+        function endPointer(ev){
+          if (activePointerId !== null && (!ev || ev.pointerId === activePointerId)) {
+            try { divider.releasePointerCapture(activePointerId); } catch (err) { /* ignore */ }
+            activePointerId = null;
+          }
+          divider.classList.remove('is-active');
+        }
+
+        divider.addEventListener('pointerdown', function(ev){
+          if (isStacked()) { return; }
+          var rect = split.getBoundingClientRect();
+          if (rect.width <= 0) { return; }
+          var leftPx = (storedWidth / 100) * rect.width;
+          dragOffset = ev.clientX - rect.left - leftPx;
+          activePointerId = ev.pointerId;
+          divider.classList.add('is-active');
+          divider.setPointerCapture(activePointerId);
+          if (typeof divider.focus === 'function') { divider.focus(); }
+          pointerMove(ev);
+          ev.preventDefault();
+        });
+        divider.addEventListener('pointermove', pointerMove);
+        divider.addEventListener('pointerup', endPointer);
+        divider.addEventListener('pointercancel', endPointer);
+        divider.addEventListener('lostpointercapture', endPointer);
+
+        divider.addEventListener('keydown', function(ev){
+          if (isStacked()) { return; }
+          var step = ev.shiftKey ? 10 : 2;
+          if (ev.key === 'ArrowLeft') {
+            ev.preventDefault();
+            setWidth(storedWidth - step);
+          } else if (ev.key === 'ArrowRight') {
+            ev.preventDefault();
+            setWidth(storedWidth + step);
+          } else if (ev.key === 'Home') {
+            ev.preventDefault();
+            setWidth(minPercent);
+          } else if (ev.key === 'End') {
+            ev.preventDefault();
+            setWidth(maxPercent);
+          }
+        });
+
+        divider.addEventListener('dblclick', function(){
+          if (isStacked()) { return; }
+          setWidth(50);
+        });
+
+        function handleLayoutChange(){
+          if (activePointerId !== null) { endPointer(); }
+          if (isStacked()) {
+            split.style.setProperty('--app-left-width', '100%');
+            divider.setAttribute('aria-hidden', 'true');
+            divider.setAttribute('aria-valuenow', '100');
+          } else {
+            divider.removeAttribute('aria-hidden');
+            applyWidth(storedWidth);
+          }
+        }
+
+        window.addEventListener('resize', handleLayoutChange);
+        handleLayoutChange();
+      }
 
       function updateTplStatus(message, tone){
         getTplElements();
@@ -423,6 +604,7 @@ sheets:
       // Template upload helpers
       getTplElements();
       updateTplStatus();
+      initResizableColumns();
       var tplUploadBtn = $('#tplUploadBtn');
       var tplDownloadBtn = $('#tplDownloadBtn');
       var tplUploadInput = $('#tplUpload');
