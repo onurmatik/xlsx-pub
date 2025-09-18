@@ -99,19 +99,7 @@ sheets:
   </div>
 
   <script>
-    // Bootstrapper: ensure nunjucks exists (add fallback CDN if needed)
-    (function ensureNunjucks(){
-      function ok(){ if (!window.__app_inited__) initApp(); }
-      if (window.nunjucks) return ok();
-      var s = document.createElement('script');
-      s.src = 'https://unpkg.com/nunjucks@3.2.4/browser/nunjucks.min.js';
-      s.onload = ok; s.onerror = function(){ alert('Failed to load Nunjucks. Check your connection.'); };
-      document.head.appendChild(s);
-    })();
-
     function initApp(){
-      if (window.__app_inited__) return; window.__app_inited__ = true;
-
       // ===== Nunjucks env =====
       if (!window.nunjucks) { alert('Nunjucks not loaded.'); throw new Error('Nunjucks not loaded'); }
       var env = new nunjucks.Environment();
