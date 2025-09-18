@@ -20,6 +20,10 @@
   <style>
     body { padding-top: 1rem; }
     pre { white-space: pre-wrap; word-break: break-word; }
+    #tpl.drag-over {
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
   </style>
 </head>
 <body>
@@ -48,7 +52,13 @@
             </div>
 
             <div class="mb-3">
-              <label for="tpl" class="form-label">Template</label>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label for="tpl" class="form-label mb-0">Template</label>
+                <div>
+                  <button id="tplUploadBtn" type="button" class="btn btn-sm btn-outline-secondary">Upload file</button>
+                  <input id="tplUpload" type="file" class="d-none" accept="text/*,.txt,.text,.md,.markdown,.njk,.nunjucks,.tmpl,.html,.htm,.json,.yaml,.yml,.csv,.tsv,.ini,.conf,.env" />
+                </div>
+              </div>
               <textarea id="tpl" class="form-control" rows="12" placeholder="# Example YAML generated from Excel
 sheets:
 {% for key, s in sheets %}
@@ -58,10 +68,11 @@ sheets:
     {% for colName, values in s.cols %}
       - {{ colName | replace(' ', '_') }}
     {% endfor %}
-{% endfor %}"></textarea>
+    {% endfor %}"></textarea>
               <div class="form-text">
                 Use <nobr><code>sheets.&lt;sheetKey&gt;.rows</code></nobr> and <nobr><code>sheets.&lt;sheetKey&gt;.cols.&lt;column&gt;</code></nobr>.
               </div>
+              <div id="tplStatus" class="form-text text-muted" data-default-message="Drag &amp; drop a text file here or upload one.">Drag &amp; drop a text file here or upload one.</div>
             </div>
 
             <div class="row g-2 align-items-end">
@@ -105,6 +116,17 @@ sheets:
       // ===== Helpers =====
       function $(sel){ return document.querySelector(sel); }
       function nameKey(name){ return String(name).trim().toLowerCase().split(' ').join('_'); }
+      var tplArea = null;
+      var tplStatusEl = null;
+      var tplStatusDefault = '';
+
+      function getTplElements(){
+        if (!tplArea) { tplArea = $('#tpl'); }
+        if (!tplStatusEl) {
+          tplStatusEl = $('#tplStatus');
+          if (tplStatusEl) { tplStatusDefault = tplStatusEl.getAttribute('data-default-message') || tplStatusEl.textContent || ''; }
+        }
+      }
 
       function parseWorkbook(workbook){
         var result = {};
@@ -146,6 +168,58 @@ sheets:
       function enableDownload(enable){ $('#downloadBtn').disabled = !enable; }
 
       function buildContext(){ return { sheets: state.sheets }; }
+
+      function updateTplStatus(message, tone){
+        getTplElements();
+        if (!tplStatusEl) { return; }
+        var text = message || tplStatusDefault;
+        tplStatusEl.textContent = text;
+        tplStatusEl.classList.remove('text-muted', 'text-success', 'text-danger');
+        var toneClass = 'text-muted';
+        if (tone === 'success') { toneClass = 'text-success'; }
+        else if (tone === 'danger') { toneClass = 'text-danger'; }
+        tplStatusEl.classList.add(toneClass);
+      }
+
+      function isTextTemplateFile(file){
+        if (!file) { return false; }
+        if (file.type && file.type.indexOf('text') === 0) { return true; }
+        var name = file.name || '';
+        var dot = name.lastIndexOf('.');
+        var ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+        var allowed = ['txt','text','md','markdown','njk','nunjucks','tmpl','mustache','hbs','html','htm','json','yaml','yml','csv','tsv','ini','conf','env'];
+        return allowed.indexOf(ext) !== -1;
+      }
+
+      function loadTemplateFromFile(file){
+        getTplElements();
+        if (!file) { return; }
+        if (!isTextTemplateFile(file)) {
+          updateTplStatus('The file "' + (file.name || 'selected') + '" does not look like a text template.', 'danger');
+          return;
+        }
+        var reader = new FileReader();
+        reader.onload = function(){
+          if (tplArea) {
+            tplArea.value = reader.result || '';
+            tplArea.focus();
+          }
+          updateTplStatus('Loaded template from ' + (file.name || 'file') + '.', 'success');
+        };
+        reader.onerror = function(){
+          var errMsg = reader.error && reader.error.message ? reader.error.message : 'Unknown error';
+          updateTplStatus('Could not read "' + (file.name || 'file') + '": ' + errMsg, 'danger');
+        };
+        reader.readAsText(file);
+      }
+
+      function loadTemplateFromText(text, note){
+        getTplElements();
+        if (!tplArea) { return; }
+        tplArea.value = text || '';
+        tplArea.focus();
+        updateTplStatus(note || 'Loaded dropped text.', 'success');
+      }
 
       function renderTemplate(){
         var tpl = $('#tpl').value || '';
@@ -194,6 +268,44 @@ sheets:
 
       $('#renderBtn').addEventListener('click', renderTemplate);
       $('#downloadBtn').addEventListener('click', download);
+
+      // Template upload helpers
+      getTplElements();
+      updateTplStatus();
+      var tplUploadBtn = $('#tplUploadBtn');
+      var tplUploadInput = $('#tplUpload');
+      if (tplUploadBtn && tplUploadInput) {
+        tplUploadBtn.addEventListener('click', function(){ tplUploadInput.click(); });
+        tplUploadInput.addEventListener('change', function(ev){
+          var file = ev.target.files && ev.target.files[0];
+          if (file) { loadTemplateFromFile(file); }
+          ev.target.value = '';
+        });
+      }
+
+      if (tplArea) {
+        tplArea.addEventListener('dragover', function(ev){
+          ev.preventDefault();
+          if (ev.dataTransfer) { ev.dataTransfer.dropEffect = 'copy'; }
+          tplArea.classList.add('drag-over');
+        });
+        tplArea.addEventListener('dragleave', function(){ tplArea.classList.remove('drag-over'); });
+        tplArea.addEventListener('dragend', function(){ tplArea.classList.remove('drag-over'); });
+        tplArea.addEventListener('drop', function(ev){
+          ev.preventDefault();
+          tplArea.classList.remove('drag-over');
+          var dt = ev.dataTransfer;
+          if (!dt) { return; }
+          if (dt.files && dt.files.length) {
+            loadTemplateFromFile(dt.files[0]);
+            return;
+          }
+          var text = dt.getData && dt.getData('text/plain');
+          if (text) {
+            loadTemplateFromText(text, 'Loaded dropped text snippet.');
+          }
+        });
+      }
 
       // Initial summary
       renderSheetSummary(); enableRenderButtons();
