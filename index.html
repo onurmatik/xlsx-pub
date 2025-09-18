@@ -168,20 +168,47 @@
                   <input id="tplUpload" type="file" class="d-none" accept="text/*,.txt,.text,.md,.markdown,.njk,.nunjucks,.tmpl,.html,.htm,.json,.yaml,.yml,.csv,.tsv,.ini,.conf,.env" />
                 </div>
               </div>
-              <textarea id="tpl" class="form-control" rows="12" placeholder="# Example YAML generated from Excel
-sheets:
-{% for key, s in sheets %}
-  {{ s.name }}:
-    rows: {{ s.rows | length }}
-    columns:
-    {% for colName, values in s.cols %}
-      - {{ colName }}
-    {% endfor %}
-    {% endfor %}"></textarea>
+              <textarea id="tpl" class="form-control" rows="12"># Excel workbook → YAML
+workbook:
+{% if sheets | length %}
+  sheets:
+{% for sheetKey, sheet in sheets %}
+    - key: {{ sheetKey | dump }}
+      name: {{ sheet.name | dump }}
+{% set columnPairs = sheet.cols | dictsort -%}
+{% if columnPairs | length %}
+      columns:
+{% for column in columnPairs %}
+        - {{ column[0] | dump }}
+{% endfor %}
+{% else %}
+      columns: []
+{% endif %}
+{% if sheet.rows | length %}
+      rows:
+{% for row in sheet.rows %}
+{% set cells = row | dictsort -%}
+{% if cells | length %}
+        -
+{% for cell in cells %}
+          {{ cell[0] }}: {{ cell[1] | dump }}
+{% endfor %}
+{% else %}
+        - {}
+{% endif %}
+{% endfor %}
+{% else %}
+      rows: []
+{% endif %}
+{% endfor %}
+{% else %}
+  sheets: []
+{% endif %}
+</textarea>
               <div class="form-text">
                 Use <nobr><code>sheets.&lt;sheetKey&gt;.rows</code></nobr> and <nobr><code>sheets.&lt;sheetKey&gt;.cols.&lt;column&gt;</code></nobr>.
               </div>
-              <div id="tplStatus" class="form-text text-muted" data-default-message="Drag &amp; drop a text file here or upload one.">Drag &amp; drop a text file here or upload one.</div>
+              <div id="tplStatus" class="form-text text-muted" data-default-message="Using the sample YAML template. Drag &amp; drop a text file here or upload one to replace it.">Using the sample YAML template. Drag &amp; drop a text file here or upload one to replace it.</div>
             </div>
 
             <div class="row g-2 align-items-end">
