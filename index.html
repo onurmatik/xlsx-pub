@@ -84,7 +84,6 @@ sheets:
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span>Output preview</span>
-            <span id="renderStatus" class="text-muted small"></span>
           </div>
           <div class="card-body">
             <pre id="output" class="mb-0 text-body"></pre>
@@ -155,7 +154,6 @@ sheets:
         state.outputText = text;
         $('#output').textContent = text;
         enableDownload(true);
-        $('#renderStatus').textContent = 'Rendered 1 document.';
       }
 
       function download(){
