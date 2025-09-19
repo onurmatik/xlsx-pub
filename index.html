@@ -20,6 +20,7 @@
   <style>
     :root {
       --app-navbar-height: 3.5rem;
+      --app-footer-height: 3.5rem;
     }
     html,
     body {
@@ -27,12 +28,16 @@
     }
     body {
       padding-top: var(--app-navbar-height);
+      padding-bottom: var(--app-footer-height);
     }
     .app-navbar {
       height: var(--app-navbar-height);
     }
+    .app-navbar-bottom {
+      height: var(--app-footer-height);
+    }
     .app-content {
-      height: calc(100vh - var(--app-navbar-height));
+      height: calc(100vh - var(--app-navbar-height) - var(--app-footer-height));
       overflow: hidden;
       padding-top: 1rem;
       padding-bottom: 1rem;
@@ -193,11 +198,6 @@
         <div class="h-100">
           <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
             <h2 class="fs-5 mb-0">Output preview</h2>
-            <div class="ms-auto d-flex flex-nowrap align-items-center gap-2">
-              <label for="outName" class="form-label mb-0 visually-hidden">Output file name</label>
-              <input id="outName" type="text" class="form-control" value="document.yaml" style="min-width: 12rem;" />
-              <button id="downloadBtn" class="btn btn-success" disabled>Download</button>
-            </div>
           </div>
           <hr>
           <pre id="output" class="mb-0 text-body">
@@ -206,6 +206,14 @@
       </div>
     </div>
   </main>
+
+  <nav class="navbar navbar-light bg-light fixed-bottom app-navbar-bottom border-top">
+    <div class="container-fluid d-flex flex-wrap align-items-center justify-content-end gap-2">
+      <label for="outName" class="form-label mb-0 visually-hidden">Output file name</label>
+      <input id="outName" type="text" class="form-control" value="document.yaml" style="min-width: 12rem; width: auto; flex: 0 0 auto;" />
+      <button id="downloadBtn" class="btn btn-success" disabled>Download</button>
+    </div>
+  </nav>
 
   <script>
     function initApp(){
