@@ -178,15 +178,8 @@
               <div id="tplStatus" class="form-text text-muted" data-default-message="Drag &amp; drop a template text file here, upload one or choose from the template list.">Drag &amp; drop a template text file here, upload one or choose from the template list.</div>
             </div>
 
-            <div class="row g-2 align-items-end">
-              <div class="col-7">
-                <label for="outName" class="form-label">Output file name</label>
-                <input id="outName" type="text" class="form-control" value="document.yaml" />
-              </div>
-              <div class="col-5 text-end">
-                <button id="renderBtn" class="btn btn-primary" disabled>Render</button>
-                <button id="downloadBtn" class="btn btn-success" disabled>Download</button>
-              </div>
+            <div class="mt-3 text-end">
+              <button id="renderBtn" class="btn btn-primary" disabled>Render</button>
             </div>
 
           </div>
@@ -198,7 +191,14 @@
       <!-- Right column -->
       <div class="app-pane app-pane-right app-column" id="appPreviewPane">
         <div class="h-100">
-          <h2 class="fs-5">Output preview</h2>
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <h2 class="fs-5 mb-0">Output preview</h2>
+            <div class="ms-auto d-flex flex-wrap align-items-center gap-2">
+              <label for="outName" class="form-label mb-0 visually-hidden">Output file name</label>
+              <input id="outName" type="text" class="form-control" value="document.yaml" style="min-width: 12rem;" />
+              <button id="downloadBtn" class="btn btn-success" disabled>Download</button>
+            </div>
+          </div>
           <hr>
           <pre id="output" class="mb-0 text-body">
           </pre>
